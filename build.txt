@@ -1,0 +1,2 @@
+I could only get PARI to work under WSL.
+g++ -o widely main.cpp -lpari
