@@ -5,11 +5,12 @@
 #include <chrono>
 #include <pari/pari.h>
 
-long pow10arr[19];
+long base = 36;
+long powarr[64];
 
 void init() {
-    for (int i = 0; i < 19; i++) {
-        pow10arr[i] = pow(10, i);
+    for (int i = 0; i < 64; i++) {
+        powarr[i] = pow(base, i);
     }
 }
 // Function to check if a number is prime
@@ -30,22 +31,22 @@ bool isPrime(long n) {
 int stringLen(long x) {
     int len = 0;
     while (x > 0) {
-        x /= 10;
+        x /= base;
         len++;
     }
     return len;
 }
 
 long getDigit(long x, int d) {
-    return (x / pow10arr[d]) % 10;
+    return (x / powarr[d]) % base;
 }
 
 long getRightSide(long x, int d) {
-    return x % pow10arr[d];
+    return x % powarr[d];
 }
 
 long getLeftSide(long x, int d) {
-    return x / pow10arr[d] * pow10arr[d];
+    return x / powarr[d] * powarr[d];
 }
 
 
@@ -53,10 +54,10 @@ bool long_digitallyDelicate(long x) {
     // Get len of string
     int L = stringLen(x);
     for (int i = 0; i < L; i++) {
-        for (int d = 0; d < 10; d++) {
+        for (int d = 0; d < base; d++) {
             long diff = d - getDigit(x, i);
             if (diff != 0) {
-                long num = getLeftSide(x, i) + diff * pow10arr[i] + getRightSide(x, i);
+                long num = getLeftSide(x, i) + diff * powarr[i] + getRightSide(x, i);
                 if (isPrime(num)) {
                     return false;
                 }
@@ -70,9 +71,9 @@ bool long_digitallyUnstable(long x) {
     // Get len of string
     int L = stringLen(x);
     for (int i = 0; i <= L; i++) {
-        for (long d = 0; d < 10; d++) {
+        for (long d = 0; d < base; d++) {
             if (d != 0 || i != L) {
-                long num = getLeftSide(x, i) * 10L + d * pow10arr[i] + getRightSide(x, i);
+                long num = getLeftSide(x, i) * base + d * powarr[i] + getRightSide(x, i);
                 if (isPrime(num)) {
                     return false;
                 }
@@ -87,16 +88,16 @@ int main() {
     
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    long i = 2147483659;
+    long i = 1;
     bool foundNum = false;
     while (!foundNum) {
         if (uisprime(i) == 1) {
-            if (long_digitallyUnstable(i)) {
+            if (long_digitallyDelicate(i)) {
                 std::cout << i << std::endl;
-                if (long_digitallyDelicate(i)) {
-                    std::cout << "^ This number is WDI" << std::endl;
+                //if (long_digitallyDelicate(i)) {
+                    std::cout << "^ This number is good" << std::endl;
                     foundNum = true;
-                }
+                //}
             }
         }
         i++;

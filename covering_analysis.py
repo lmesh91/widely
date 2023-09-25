@@ -11,7 +11,7 @@ localModList = [] # List of primes used in each local set
 verifyRepeats = True # Verifies that repeated primes are used properly
 verifyPrimes = True # Verifies each prime divides into covering set
 verifyCovering = True # Verifies covering sets cover every possible number
-congruenceUsageCheck = True # Checks the usage of each congruence across the LCM
+congruenceUsageCheck = False # Checks the usage of each congruence across the LCM
 for coveringSet in file:
     splitSet = coveringSet.split(">\n")
     coverNum = splitSet[0]
