@@ -1,17 +1,23 @@
 \\ Global vars
-wdBase = 2
+wdBase = 5
 filename = concat(concat("Coverings\\base",wdBase),".txt")
-printIncrement = 100
+printIncrement = 10000
 
 \\Modes:
 \\0 - Search for WDDelicate
 \\1 - Search for WDUnstable
 \\2 - Search for WDImmutable
-\\3 - Optimize WDDelicate (Not implemented)
-\\4 - Optimize WDUnstable (Not implemented)
-\\5 - Optimize WDImmutable (Not implemented)
-\\-1 - Search a range
-mode = 2
+\\3 - Optimize WDDelicate
+\\4 - Optimize WDUnstable
+\\5 - Optimize WDImmutable
+\\-1 - Search a range (Not implemented)
+mode = 0
+
+\\Optimization options
+startSeed = 0
+maxSeed = 1000000
+maxNum = oo
+searchRounds = oo
 
 
 \\ Check if a prime is digitally delicate
@@ -78,11 +84,35 @@ is_immutable_w(n, base) = {
     return(0);
 }
 
+\\Remove all occurrences of all entries that appear multiple times from a List
+remove_dups(l) = {
+    listsort(l);
+    goodNums = List([]);
+    justRemoved = 0;
+    for (i = 1, #l-1,\
+        if (#l > i,\
+        if (l[i]==l[i+1],\
+            if (#l > i+1,\
+                if (l[i]!=l[i+2],listpop(l,i+1)),\
+                listpop(l,i+1);\
+            );\
+            listpop(l,i);\
+            i = i - 1;\
+            justRemoved = 1,\
+            listput(goodNums,l[i]);\
+            justRemoved = 0;\
+        ););\
+    );
+    if (justRemoved == 0, listput(goodNums,l[#l]));
+    return (goodNums);
+}
+
 print("Starting program...");
 
 \\Read covering file
 coveringFile = fileopen(filename);
 covering = List([])
+usedMods = Map()
 while (l = filereadstr(coveringFile),\
     v = Vec(l);\
     if (v[1] == "<",\
@@ -91,11 +121,79 @@ while (l = filereadstr(coveringFile),\
         congruence = strsplit(filereadstr(coveringFile), " ");\
         while (length(congruence) == 3,\
             listput(covering[listIdx], [Mod(eval(congruence[1]),eval(congruence[2])),eval(congruence[3])]);\
+            if (mapisdefined(usedMods,eval(congruence[2])),\
+                usedModList = mapget(usedMods,eval(congruence[2]));\
+                listput(usedModList,eval(congruence[3]));\
+                mapput(usedMods,eval(congruence[2]),usedModList),\
+                mapput(usedMods,eval(congruence[2]),List([eval(congruence[3])])));\
             res = filereadstr(coveringFile);\
             if (res != 0, congruence = strsplit(res, " "), congruence = []);\
         ),\
     )\
 );
+
+\\Get all groups of non-reused primes with same order
+usedModKeys = Vec(usedMods);
+for (i = 1, #usedModKeys,\
+  usedModList = remove_dups(mapget(usedMods,usedModKeys[i]));\
+  if (#usedModList<2,\
+      mapdelete(usedMods,usedModKeys[i]),\
+      mapput(usedMods,usedModKeys[i],usedModList);\
+  );\
+);
+
+\\Get position of each used entry
+usedModKeys = Vec(usedMods);
+\\Quickly print info on number of permutations
+print("Number of permutations for optimization:");
+print(floor(prod(i = 1, #usedModKeys, factorial(#(mapget(usedMods,usedModKeys[i]))))));
+print("");
+for (i = 1, #usedModKeys,\
+    usedModList = mapget(usedMods,usedModKeys[i]);\
+    usedModLocations = List([]);\
+    for (m = 1, #usedModList,\
+        for (n = 1, #covering,\
+            for (c = 1, #covering[n],\
+                if (covering[n][c][2] == usedModList[m], listput(usedModLocations,[n,c]));\
+    );););\
+    mapput(usedMods,usedModKeys[i],[usedModList,usedModLocations]);\
+);
+
+\\Function to create a covering set with a given seed
+construct_covering(seed) = {
+    covering_mod = covering;
+    for (i = 1, #usedModKeys,\
+        usedModList = mapget(usedMods,usedModKeys[i]);\
+        seedForMod = floor(seed % factorial(#usedModList[1]));
+        seed = seed \ factorial(#usedModList[1]);
+        perm = numtoperm(#usedModList, seedForMod);
+        for (p = 1, #perm,\
+            covering_mod[usedModList[2][p][1]][usedModList[2][p][2]][2] = usedModList[1][perm[p]];\
+        );\
+    );\
+    return ([seed,covering_mod]);
+}
+
+\\Function to create a WD candidate from a seed
+construct_widely_candidate(seed) = {
+    covering_info = construct_covering(seed);
+    if (covering_info[1] >= searchRounds, quit);
+
+    \\Create a list of moduli that need to be satisfied
+    moduli = List([]);\
+    for (i = 1, wdBase-1,\
+        for(j = 1, length(covering_info[2][i]),\
+        listput(moduli, Mod((-1 * i * wdBase ^ lift(covering_info[2][i][j][1])) % covering_info[2][i][j][2], covering_info[2][i][j][2]));\
+        );\
+    );
+
+    \\Convert to a single congruence
+    wdCongruence = moduli[1];
+    for (i = 2, length(moduli), wdCongruence = chinese(wdCongruence, moduli[i]));
+
+    return (lift(wdCongruence)+wdCongruence.mod*covering_info[1]);
+}
+
 
 \\Create a list of moduli that need to be satisfied
 moduli = List([])
@@ -108,7 +206,7 @@ for (i = 1, wdBase-1,\
 \\Convert to a single congruence
 wdCongruence = moduli[1];
 for (i = 2, length(moduli), wdCongruence = chinese(wdCongruence, moduli[i]));
-print(wdCongruence);
+if (mode < 3, print(wdCongruence));
 
 \\Search for WDD primes
 if (mode == 0,\
@@ -162,5 +260,54 @@ while (wdFound == 0,\
     );\
     n = n+inc;\
 ););\
+
+\\Optimize WDD primes
+if (mode == 3,\
+for (seed = startSeed, maxSeed,\
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   n = construct_widely_candidate(seed);\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+       if (is_delicate_w(n, wdBase),\
+           print(n);\
+           print(concat("*",seed));\
+           maxNum = n;\
+       );\
+   ););\
+);\
+);\
+
+\\Optimize WDU primes
+if (mode == 4,\
+for (seed = startSeed, maxSeed,\
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   n = construct_widely_candidate(seed);\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+       if (is_unstable(n, wdBase),\
+           print(n);\
+           print(concat("*",seed));\
+           maxNum = n;\
+       );\
+   ););\
+);\
+);\
+
+
+\\Optimize WDI primes
+if (mode == 5,\
+for (seed = startSeed, maxSeed,\
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   n = construct_widely_candidate(seed);\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+       if (is_immutable_w(n, wdBase),\
+           print(n);\
+           print(concat("*",seed));\
+           maxNum = n;\
+       );\
+   ););\
+);\
+);\
 
 \\forprime(p = 2, 10000000, if(is_immutable(p,6),print(p);quit;));

@@ -2,7 +2,7 @@
 import math
 import sys
 sys.set_int_max_str_digits(5000) # Increased to work for Southwick's base 10 covering
-base = 4
+base = 5
 file = open("base"+str(base)+".txt", "r").read().split("<")[1:]
 commonFac = 1 # The common factor of the primes in the covering system; the A in An+B
 moduli = 0 # Number of congruences used
