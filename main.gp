@@ -1,5 +1,5 @@
 \\ Global vars
-wdBase = 5
+wdBase = 6
 filename = concat(concat("Coverings\\base",wdBase),".txt")
 printIncrement = 10000
 
@@ -11,7 +11,7 @@ printIncrement = 10000
 \\4 - Optimize WDUnstable
 \\5 - Optimize WDImmutable
 \\-1 - Search a range (Not implemented)
-mode = 0
+mode = 3
 
 \\Optimization options
 startSeed = 0
@@ -154,8 +154,9 @@ for (i = 1, #usedModKeys,\
     for (m = 1, #usedModList,\
         for (n = 1, #covering,\
             for (c = 1, #covering[n],\
-                if (covering[n][c][2] == usedModList[m], listput(usedModLocations,[n,c]));\
-    );););\
+                if (covering[n][c][2] == usedModList[m],\
+                    if (covering[n][c][1].mod == usedModKeys[i], listput(usedModLocations,[n,c]));\
+    ););););\
     mapput(usedMods,usedModKeys[i],[usedModList,usedModLocations]);\
 );
 

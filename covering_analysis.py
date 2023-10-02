@@ -2,8 +2,8 @@
 import math
 import sys
 sys.set_int_max_str_digits(5000) # Increased to work for Southwick's base 10 covering
-base = 5
-file = open("base"+str(base)+".txt", "r").read().split("<")[1:]
+base = 6
+file = open("Coverings/base"+str(base)+".txt", "r").read().split("<")[1:]
 commonFac = 1 # The common factor of the primes in the covering system; the A in An+B
 moduli = 0 # Number of congruences used
 globalModDict = {} # Dict for storing all primes used in the set
@@ -11,6 +11,7 @@ localModList = [] # List of primes used in each local set
 verifyRepeats = True # Verifies that repeated primes are used properly
 verifyPrimes = True # Verifies each prime divides into covering set
 verifyCovering = True # Verifies covering sets cover every possible number
+compositeCheck = True # Verifies that no congruences force a number to be composite
 congruenceUsageCheck = False # Checks the usage of each congruence across the LCM
 for coveringSet in file:
     splitSet = coveringSet.split(">\n")
@@ -24,6 +25,9 @@ for coveringSet in file:
             moduli += 1
             moduland = (-1 * int(coverNum) * base ** int(i[0])) % int(i[2])
             print(i[0]+" mod "+i[1]+" ("+i[2]+") -> " + str(moduland) + " mod " + i[2])
+            if compositeCheck and moduland == 0:
+                print("Results in composite numbers!")
+                exit(0)
             if verifyPrimes:
                 if (base ** int(i[1]) - 1) % int(i[2]) != 0:
                     print("Invalid prime: " + i[2] + " does not divide into " + str(base) + "^" + i[1] + "-1")
@@ -57,6 +61,9 @@ for coveringSet in file:
             print(str(c[0]) + " mod " + str(c[1]) + " needed " + str(len(uncovered)) + " time(s)")
             if len(uncovered) <= 20:
                 print(uncovered)
+            if len(uncovered) == 0:
+                print("Delete this one!")
+                exit(0)
 
     if verifyCovering:
         for i in range(lcm):
@@ -71,6 +78,6 @@ for coveringSet in file:
                 idx += 1
 print("Common Factor: "+str(commonFac)+" ("+str(len(str(commonFac)))+" digits)")
 print(str(moduli)+" sets")
-if verifyCovering and verifyPrimes and verifyRepeats:
-    print("All tests performed - this covering set is valid!")
+if verifyCovering and verifyPrimes and verifyRepeats and compositeCheck:
+    print("All required tests performed - this covering set is valid!")
 # It's important to note that when finding a widely digitally delicate prime, the covering set should be verified for the prime.
