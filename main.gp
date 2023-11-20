@@ -1,7 +1,7 @@
 \\ Global vars
 wdBase = 6
-filename = concat(concat("Coverings\\base",wdBase),".txt")
-printIncrement = 10000
+filename = concat(concat("Coverings/base",wdBase),".txt")
+printIncrement = 100000
 
 \\Modes:
 \\0 - Search for WDDelicate
@@ -11,18 +11,20 @@ printIncrement = 10000
 \\4 - Optimize WDUnstable
 \\5 - Optimize WDImmutable
 \\-1 - Search a range (Not implemented)
-mode = 3
+mode = 5
 
 \\Includes 1 mod 2, to discard even candidates
 \\Only enable for covering sets that don't have this factor
 include1mod2 = 1
 
 \\Optimization options
+\\Search uses startSeed and maxSeed
 startSeed = 0
-maxSeed = oo
+seedsPerThread = 10000 \\number of seeds run in parallel each time
+maxSeed = 10000000
 maxNum = oo
 searchRounds = oo
-stopOnOutput = 1
+stopOnOutput = 0
 
 \\Shows progress of how close primes are to being widely digitally ___
 showProgress = 1
@@ -51,19 +53,36 @@ is_delicate(n, base) = {
 \\ Check if a prime is digitally delicate (only lower digits, as the rest would be covered)
 is_delicate_w(n, base) = {
     \\ Get the digits of n in the base
-    v = digits(n, base);
-    maxNumTests = 9*#v;
-    numTests = 0;
+    my(v = digits(n, base));
+    my(maxNumTests = 9*#v);
+    my(numTests = 0);
     \\ Loop through each position and digit
-    for (k=1, #v, w = v;
+    for (k=1, #v, my(w = v);
         for (j=0, base-1,
             if (j < v[k], w[k] = j;
                 \\ Plugs the digits back into the base 
-                ntest = subst(Pol(w), x, base);
+                my(ntest = subst(Pol(w), x, base));
                 if (ispseudoprime(ntest), return(-1*(numTests+j)/maxNumTests)); 
             );
         );
         numTests += 9; 
+    ); 
+    return (1);
+}
+
+\\ Check if a prime is digitally delicate (only lower digits, as the rest would be covered) - does not compute info on % complete
+is_delicate_w_fast(n, base) = {
+    \\ Get the digits of n in the base
+    my(v = digits(n, base));
+    \\ Loop through each position and digit
+    for (k=1, #v, my(w = v);
+        for (j=0, base-1,
+            if (j < v[k], w[k] = j;
+                \\ Plugs the digits back into the base 
+                my(ntest = subst(Pol(w), x, base));
+                if (ispseudoprime(ntest), return(0)); 
+            );
+        );
     ); 
     return (1);
 }
@@ -89,6 +108,24 @@ is_unstable(n, base) = {
     return (1);
 }
 
+\\ Check if a prime is digitally unstable - does not compute info on % complete
+is_unstable_fast(n, base) = {
+    \\ Get the digits of n in the base
+    my(v = digits(n, base));
+    \\ Loop through each position and digit
+    for (k=1, 1+#v, my(w = v);
+        for (j=0, base-1,
+            \\ Why all this weird syntactical jargon? Because for some reason I have to convert between a list and a vector here...
+            if (j+k!=1, my(l=List(w)); listinsert(~l,j,k);
+                \\ Plugs the digits back into the base 
+                my(ntest = subst(Pol(Vec(l)), x, base));
+                if (ispseudoprime(ntest), return(0)); 
+            ); 
+        ); 
+    ); 
+    return (1);
+}
+
 \\Check if a prime is digitally immutable
 is_immutable(n, base) = {
     isUns = is_unstable(n, base);
@@ -105,6 +142,12 @@ is_immutable_w(n, base) = {
     isDel = is_delicate_w(n, base);
     if (isDel < 0, return(-1+isDel));
     return(1);
+}
+
+\\Check if a prime is digitally immutable (only lower digits for delicates) - does not compute info on % complete
+is_immutable_w_fast(n, base) = {
+    if (is_unstable_fast(n, base) && is_delicate_w_fast(n, base), return (1));
+    return(0);
 }
 
 \\Remove all occurrences of all entries that appear multiple times from a List
@@ -185,13 +228,12 @@ for (i = 1, #usedModKeys,\
 
 \\Function to create a covering set with a given seed
 construct_covering(seed) = {
-    seed1 = seed;
-    covering_mod = covering;
+    my(covering_mod = covering);
     for (i = 1, #usedModKeys,\
-        usedModList = mapget(usedMods,usedModKeys[i]);\
-        seedForMod = floor(seed % factorial(#usedModList[1]));
+        my(usedModList = mapget(usedMods,usedModKeys[i]));\
+        my(seedForMod = floor(seed % factorial(#usedModList[1])));
         seed = seed \ factorial(#usedModList[1]);
-        perm = numtoperm(#usedModList[1], seedForMod);
+        my(perm = numtoperm(#usedModList[1], seedForMod));
         for (p = 1, #perm,\
             covering_mod[usedModList[2][p][1]][usedModList[2][p][2]][2] = usedModList[1][perm[p]];\
         );\
@@ -201,11 +243,11 @@ construct_covering(seed) = {
 
 \\Function to create a WD candidate from a seed
 construct_widely_candidate(seed) = {
-    covering_info = construct_covering(seed);
+    my(covering_info = construct_covering(seed));
     if (covering_info[1] >= searchRounds, quit);
 
     \\Create a list of moduli that need to be satisfied
-    moduli = List([]);\
+    my(moduli = List([]));\
     for (i = 1, wdBase-1,\
         for(j = 1, length(covering_info[2][i]),\
         listput(moduli, Mod((-1 * i * wdBase ^ lift(covering_info[2][i][j][1])) % covering_info[2][i][j][2], covering_info[2][i][j][2]));\
@@ -213,11 +255,61 @@ construct_widely_candidate(seed) = {
     );
 
     \\Convert to a single congruence
-    wdCongruence = moduli[1];
+    my(wdCongruence = moduli[1]);
     for (i = 2, length(moduli), wdCongruence = chinese(wdCongruence, moduli[i]));
     if (include1mod2 == 1, wdCongruence = chinese(wdCongruence, Mod(1, 2)));
 
     return (lift(wdCongruence)+wdCongruence.mod*covering_info[1]);
+}
+
+\\Wrapper function for digitally delicate multithreading
+is_delicate_w_mt(seed) = {
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   my(n = construct_widely_candidate(seed));\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+   if (is_delicate_w_fast(n, wdBase)==1,\
+       return(n);
+   );););\
+   return(0);\
+}
+
+\\Wrapper function for digitally delicate multithreading
+is_delicate_w_mt(seed) = {
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   my(n = construct_widely_candidate(seed));\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+   if (is_delicate_w_fast(n, wdBase)==1,\
+       return(n);
+   );););\
+   return(0);\
+}
+
+
+\\Wrapper function for digitally unstable multithreading
+is_unstable_mt(seed) = {
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   my(n = construct_widely_candidate(seed));\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+   if (is_unstable_fast(n, wdBase)==1,\
+       return(n);
+   );););\
+   return(0);\
+}
+
+
+\\Wrapper function for digitally immutable multithreading
+is_immutable_w_mt(seed) = {
+   if (seed%printIncrement == 0, print(concat("*",seed)));\
+   my(n = construct_widely_candidate(seed));\
+   if (n < maxNum,\
+   if (ispseudoprime(n),\
+   if (is_immutable_w_fast(n, wdBase)==1,\
+       return(n);
+   );););\
+   return(0);\
 }
 
 
@@ -303,74 +395,51 @@ while (wdFound == 0,\
     n = n+inc;\
 ););\
 
+exportall()
+
 \\Optimize WDD primes
 if (mode == 3,\
-for (seed = startSeed, maxSeed,\
-   if (seed%printIncrement == 0, print(concat("*",seed)));\
-   n = construct_widely_candidate(seed);\
-   if (n < maxNum,\
-   if (ispseudoprime(n),\
-       result = is_delicate_w(n, wdBase);\
-       if (result==1,\
-           print(n);\
-           print(concat("*",seed));\
-           progressThreshold = -oo;\
-           maxNum = n;\
-           if (stopOnOutput==1, quit);\
-       );\
-       if (showProgress && result<progressThreshold,\
-           print(result);\
-           progressThreshold = result;\
-       );\
-   ););\
+forstep (startThreadSeed = startSeed, maxSeed, seedsPerThread,\
+parfor (seed = startThreadSeed, startThreadSeed + seedsPerThread - 1, is_delicate_w_mt(seed), result,\
+    if (result!=0,\
+        print(result);\
+        print(concat("*",seed));\
+        if (result < maxNum, maxNum = result);\
+        if (stopOnOutput==1, quit);\
+    );\
+);\
+export(maxNum);\
 );\
 );\
 
 \\Optimize WDU primes
 if (mode == 4,\
-for (seed = startSeed, maxSeed,\
-   if (seed%printIncrement == 0, print(concat("*",seed)));\
-   n = construct_widely_candidate(seed);\
-   if (n < maxNum,\
-   if (ispseudoprime(n),\
-       result = is_unstable(n, wdBase);\
-       if (result==1,\
-           print(n);\
-           print(concat("*",seed));\
-           progressThreshold = -oo;\
-           maxNum = n;\
-           if (stopOnOutput==1, quit);\
-       );\
-       if (showProgress && result<progressThreshold,\
-           print(result);\
-           progressThreshold = result;\
-       );\
-   ););\
+forstep (startThreadSeed = startSeed, maxSeed, seedsPerThread,\
+parfor (seed = startThreadSeed, startThreadSeed + seedsPerThread - 1, is_unstable_mt(seed), result,\
+    if (result!=0,\
+        print(result);\
+        print(concat("*",seed));\
+        if (result < maxNum, maxNum = result);\
+        if (stopOnOutput==1, quit);\
+    );\
+);\
+export(maxNum);\
 );\
 );\
 
 
 \\Optimize WDI primes
 if (mode == 5,\
-for (seed = startSeed, maxSeed,\
-   if (seed%printIncrement == 0, print(concat("*",seed)));\
-   n = construct_widely_candidate(seed);\
-   if (n < maxNum,\
-   if (ispseudoprime(n),\
-       result = is_immutable_w(n, wdBase);\
-       if (result==1,\
-           print(n);\
-           print(concat("*",seed));\
-           progressThreshold = -oo;\
-           maxNum = n;\
-           if (stopOnOutput==1, quit);\
-       );\
-       if (showProgress && result<progressThreshold,\
-           print(result);\
-           progressThreshold = result;\
-       );\
-   ););\
+forstep (startThreadSeed = startSeed, maxSeed, seedsPerThread,\
+parfor (seed = startThreadSeed, startThreadSeed + seedsPerThread - 1, is_immutable_w_mt(seed), result,\
+    if (result!=0,\
+        print(result);\
+        print(concat("*",seed));\
+        if (result < maxNum, maxNum = result);\
+        if (stopOnOutput==1, quit);\
+    );\
+);\
+export(maxNum);\
 );\
 );\
-
-\\forprime(p = 2, 10000000, if(is_immutable(p,6),print(p);quit;));
+quit;
