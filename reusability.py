@@ -1,5 +1,5 @@
 # Brute-forces all possibilities to check if/when primes can be reused in covering systems
-base = 6
+base = 10
 #mod = 18
 #prime = 109
 
@@ -9,7 +9,16 @@ def test_it(mod, prime):
             if (0 < i * base ** j % prime < i):
                 print(str(i * base ** j % prime)+"->"+str(i)+" add "+str(j))
 
-test_it(5, 311)
+
+
+# Check all primes in a special file
+file = open("coverings.txt").read()
+splitSet = [i.split(" ") for i in file.split("\n")]
+for i in splitSet:
+    if len(i) == 2:
+        print("Testing mod "+i[0]+" p="+i[1])
+        test_it(int(i[0]), int(i[1]))
+
 exit(0)
 
 # Check all primes in a file

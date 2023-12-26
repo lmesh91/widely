@@ -2,7 +2,7 @@
 import math
 import sys
 sys.set_int_max_str_digits(5000) # Increased to work for Southwick's base 10 covering
-base = 6
+base = 10
 file = open("Coverings/base"+str(base)+".txt", "r").read().split("<")[1:]
 commonFac = 1 # The common factor of the primes in the covering system; the A in An+B
 moduli = 0 # Number of congruences used
@@ -25,7 +25,7 @@ for coveringSet in file:
             moduli += 1
             moduland = (-1 * int(coverNum) * base ** int(i[0])) % int(i[2])
             print(i[0]+" mod "+i[1]+" ("+i[2]+") -> " + str(moduland) + " mod " + i[2])
-            if compositeCheck and moduland == 0:
+            if compositeCheck and moduland == 0 and int(i[2]) > 1:
                 print("Results in composite numbers!")
                 exit(0)
             if verifyPrimes:
