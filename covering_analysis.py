@@ -63,7 +63,24 @@ for coveringSet in file:
                 print(uncovered)
             if len(uncovered) == 0:
                 print("Delete this one!")
-                exit(0)
+                copyModList = [x for x in localModList]
+                copyModList.remove(c)
+                uncovered = []
+                redundantMods = []
+                for i in range(lcm):
+                    covered = False
+                    idx = 0
+                    while not covered:
+                        if idx >= len(copyModList):
+                            uncovered.append(i)
+                            covered = True
+                        elif i % copyModList[idx][1] == copyModList[idx][0]:
+                            covered = True
+                            if (i % c[1] == c[0] and copyModList[idx] not in redundantMods):
+                                redundantMods.append(copyModList[idx]) 
+                        idx += 1
+                print(redundantMods)
+                #exit(0)
 
     if verifyCovering:
         for i in range(lcm):

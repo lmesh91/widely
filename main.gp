@@ -1,7 +1,7 @@
 \\ Global vars
-wdBase = 6
+wdBase = 10
 filename = concat(concat("Coverings/base",wdBase),".txt")
-printIncrement = 100000
+printIncrement = 1000
 
 \\Modes:
 \\0 - Search for WDDelicate
@@ -11,20 +11,23 @@ printIncrement = 100000
 \\4 - Optimize WDUnstable
 \\5 - Optimize WDImmutable
 \\-1 - Search a range (Not implemented)
-mode = 5
+mode = -1
 
 \\Includes 1 mod 2, to discard even candidates
 \\Only enable for covering sets that don't have this factor
-include1mod2 = 1
+\\Not recommended for -1
+include1mod2 = 0
 
-\\Optimization options
+\\Optimization/Searching options
 \\Search uses startSeed and maxSeed
 startSeed = 0
 seedsPerThread = 10000 \\number of seeds run in parallel each time
-maxSeed = 10000000
+maxSeed = 999999
 maxNum = oo
 searchRounds = oo
-stopOnOutput = 0
+stopOnOutput = 1
+printScore = 1
+writeScore = 3
 
 \\Shows progress of how close primes are to being widely digitally ___
 showProgress = 1
@@ -269,18 +272,7 @@ is_delicate_w_mt(seed) = {
    if (n < maxNum,\
    if (ispseudoprime(n),\
    if (is_delicate_w_fast(n, wdBase)==1,\
-       return(n);
-   );););\
-   return(0);\
-}
-
-\\Wrapper function for digitally delicate multithreading
-is_delicate_w_mt(seed) = {
-   if (seed%printIncrement == 0, print(concat("*",seed)));\
-   my(n = construct_widely_candidate(seed));\
-   if (n < maxNum,\
-   if (ispseudoprime(n),\
-   if (is_delicate_w_fast(n, wdBase)==1,\
+       print(construct_covering(seed));
        return(n);
    );););\
    return(0);\
@@ -312,6 +304,14 @@ is_immutable_w_mt(seed) = {
    return(0);\
 }
 
+\\Searching function
+search_mt(n) = {
+    if (!ispseudoprime(n),return(0));
+    my(result = 1);
+    if (is_delicate_w_fast(n,wdBase)==1,result = result+2);
+    if (is_unstable_fast(n,wdBase)==1,result = result+4);
+    return(result);
+}
 
 \\Create a list of moduli that need to be satisfied
 moduli = List([])
@@ -441,5 +441,34 @@ parfor (seed = startThreadSeed, startThreadSeed + seedsPerThread - 1, is_immutab
 );\
 export(maxNum);\
 );\
+);\
+
+\\Search a range for all types of primes
+if (mode == -1,\
+n = lift(wdCongruence);\
+inc = wdCongruence.mod;\
+numPrimes = 0;\
+numWDD = 0;\
+numWDU = 0;\
+numWDI = 0;\
+export(n);\
+export(inc);\
+forstep (startThreadSeed = startSeed, maxSeed, seedsPerThread,\
+parfor (seed = startThreadSeed, min(maxSeed,startThreadSeed + seedsPerThread - 1), search_mt(n+inc*seed), result,\
+    if (result>0,\
+    if(result>=printScore,print(concat(concat(concat(n+inc*seed," ("),result),")")));\
+    numPrimes+=1;\
+    if (result%4==3,numWDD+=1);\
+    if (result>4,numWDU+=1);\
+    if (result==7,numWDI+=1);\
+    if(result>=printScore,print(concat("*",seed));\
+    if (result>=writeScore,write("results.txt",concat(concat(concat(n+inc*seed," ("),result),")")));\
+    );\
+);\
+););\
+print(concat("Primes: ",numPrimes));\
+print(concat("WDD:    ",numWDD));\
+print(concat("WDU:    ",numWDU));\
+print(concat("WDI:    ",numWDI));\
 );\
 quit;
